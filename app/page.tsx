@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { Chess } from "chess.js";
 
 type Curve = "linear" | "exponential" | "quadratic" | "winner" | "flat";
 type View = "admin" | "player" | "tv";
@@ -10,13 +11,19 @@ type Puzzle = {
   id: string;
   title: string;
   fen: string;
+  startFen?: string;
   rating: number;
+  popularity?: number;
+  plays?: number;
   themes: string[];
   side: "White" | "Black";
   moves: string[];
+  uciMoves?: string[];
   board: string[];
   answer: string;
+  correctInputs: string[];
   note: string;
+  source?: "sample" | "lichess";
 };
 
 type Player = {
@@ -34,6 +41,23 @@ type Player = {
   muted?: boolean;
 };
 
+type LichessPuzzleRow = {
+  id: string;
+  fen: string;
+  moves: string;
+  rating: number;
+  popularity: number;
+  plays: number;
+  themes: string;
+  gameUrl?: string;
+  openingTags?: string;
+};
+
+type PuzzlePack = {
+  count: number;
+  puzzles: LichessPuzzleRow[];
+};
+
 const puzzles: Puzzle[] = [
   {
     id: "PA-1042",
@@ -45,7 +69,9 @@ const puzzles: Puzzle[] = [
     moves: ["Qxf7+", "Rxf7", "Rxf7"],
     board: ["r", "", "", "", "", "r", "k", "", "p", "p", "", "", "", "p", "p", "p", "", "", "p", "", "", "", "", "", "", "", "", "", "q", "", "", "", "", "", "", "", "", "", "", "", "", "", "P", "", "", "Q", "", "", "P", "P", "", "", "", "P", "P", "P", "R", "", "", "", "", "R", "K", ""],
     answer: "Qxf7+",
+    correctInputs: ["qxf7+", "qxf7"],
     note: "Deflect the rook and the back rank collapses.",
+    source: "sample",
   },
   {
     id: "PA-2198",
@@ -57,7 +83,9 @@ const puzzles: Puzzle[] = [
     moves: ["Nxd5", "Nxd5", "Qh7+"],
     board: ["", "", "r", "", "", "r", "k", "", "p", "p", "", "", "", "p", "p", "p", "", "", "", "", "b", "n", "", "", "", "", "", "q", "", "", "", "", "", "", "", "P", "", "", "", "", "", "", "N", "", "P", "N", "", "", "P", "P", "Q", "", "", "P", "P", "P", "", "", "R", "", "", "R", "K", ""],
     answer: "Nxd5",
+    correctInputs: ["nxd5"],
     note: "The knight jump wins time and unlocks the queen.",
+    source: "sample",
   },
   {
     id: "PA-3307",
@@ -69,7 +97,9 @@ const puzzles: Puzzle[] = [
     moves: ["Qa8#"],
     board: ["", "", "", "", "", "", "k", "", "", "", "", "", "", "p", "p", "p", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "Q", "", "", "", "", "", "", "", "P", "P", "P", "", "", "", "", "", "", "K", ""],
     answer: "Qa8#",
+    correctInputs: ["qa8#", "qa8"],
     note: "Use the queen's long diagonal and the edge of the board.",
+    source: "sample",
   },
 ];
 
@@ -100,6 +130,63 @@ function rankOf(players: Player[], id: string) {
   return rankPlayers(players).findIndex((player) => player.id === id) + 1;
 }
 
+function boardFromFen(fen: string) {
+  return new Chess(fen).board().flatMap((row) =>
+    row.map((piece) => piece ? (piece.color === "w" ? piece.type.toUpperCase() : piece.type) : ""),
+  );
+}
+
+function uciToMove(uci: string) {
+  return { from: uci.slice(0, 2), to: uci.slice(2, 4), promotion: uci[4] };
+}
+
+function normalizeMove(move: string) {
+  return move.trim().toLowerCase().replace(/[+#]/g, "");
+}
+
+function puzzleFromLichessRow(row: LichessPuzzleRow): Puzzle | null {
+  try {
+    const game = new Chess(row.fen);
+    const uciMoves = row.moves.trim().split(/\s+/);
+    const sanMoves: string[] = [];
+
+    for (const uci of uciMoves) {
+      const move = game.move(uciToMove(uci));
+      if (!move) return null;
+      sanMoves.push(move.san);
+    }
+
+    const displayGame = new Chess(row.fen);
+    if (uciMoves[0]) displayGame.move(uciToMove(uciMoves[0]));
+
+    const answerUci = uciMoves[1] ?? uciMoves[0] ?? "";
+    const answerSan = sanMoves[1] ?? sanMoves[0] ?? answerUci;
+    const themes = row.themes ? row.themes.split(/\s+/).filter(Boolean) : ["puzzle"];
+    const opening = row.openingTags?.split(/\s+/)[0]?.replaceAll("_", " ");
+
+    return {
+      id: row.id,
+      title: opening || themes.slice(0, 2).join(" + ") || "Lichess puzzle",
+      fen: displayGame.fen(),
+      startFen: row.fen,
+      rating: Number(row.rating),
+      popularity: Number(row.popularity),
+      plays: Number(row.plays),
+      themes,
+      side: displayGame.turn() === "w" ? "White" : "Black",
+      moves: sanMoves.slice(1).length ? sanMoves.slice(1) : sanMoves,
+      uciMoves,
+      board: boardFromFen(displayGame.fen()),
+      answer: answerSan,
+      correctInputs: [answerSan, normalizeMove(answerSan), answerUci.toLowerCase()],
+      note: row.gameUrl ? `Imported from Lichess puzzle CSV. Game: ${row.gameUrl}` : "Imported from Lichess puzzle CSV.",
+      source: "lichess",
+    };
+  } catch {
+    return null;
+  }
+}
+
 export default function Home() {
   const [view, setView] = useState<View>("admin");
   const [status, setStatus] = useState<RoundStatus>("lobby");
@@ -113,11 +200,33 @@ export default function Home() {
   const [selected, setSelected] = useState<number | null>(null);
   const [moveText, setMoveText] = useState("");
   const [events, setEvents] = useState<string[]>(["Room J4K9 created", "Six players in lobby"]);
+  const [puzzlePool, setPuzzlePool] = useState<Puzzle[]>(puzzles);
+  const [packStatus, setPackStatus] = useState("Using built-in sample puzzles");
+  const [ratingMin, setRatingMin] = useState(900);
+  const [ratingMax, setRatingMax] = useState(2200);
+  const [themeFilter, setThemeFilter] = useState("");
+  const [minPopularity, setMinPopularity] = useState(-100);
+  const [usedPuzzleIds, setUsedPuzzleIds] = useState<string[]>([]);
 
-  const puzzle = puzzles[puzzleIndex];
+  const filteredPuzzles = useMemo(() => {
+    const theme = themeFilter.trim().toLowerCase();
+    return puzzlePool.filter((item) =>
+      item.rating >= ratingMin &&
+      item.rating <= ratingMax &&
+      (item.popularity ?? 100) >= minPopularity &&
+      (!theme || item.themes.some((tag) => tag.toLowerCase().includes(theme))) &&
+      !usedPuzzleIds.includes(item.id),
+    );
+  }, [minPopularity, puzzlePool, ratingMax, ratingMin, themeFilter, usedPuzzleIds]);
+  const activePool = filteredPuzzles.length ? filteredPuzzles : puzzlePool;
+  const puzzle = activePool[puzzleIndex % activePool.length] ?? puzzles[0];
   const ranked = useMemo(() => rankPlayers(players), [players]);
   const you = players.find((player) => player.id === "you")!;
   const answeredCount = players.filter((player) => player.answered).length;
+
+  useEffect(() => {
+    loadPuzzlePack();
+  }, []);
 
   useEffect(() => {
     if (status !== "live") return;
@@ -131,11 +240,30 @@ export default function Home() {
   }, [answeredCount, players.length, status, timeLeft]);
 
   function previewPuzzle(direction = 1) {
-    setPuzzleIndex((index) => (index + direction + puzzles.length) % puzzles.length);
+    setPuzzleIndex((index) => (index + direction + activePool.length) % activePool.length);
     setStatus("preview");
     setSelected(null);
     setMoveText("");
-    setEvents((items) => ["Puzzle preview loaded for host", ...items].slice(0, 6));
+    setEvents((items) => [`Puzzle preview loaded from ${activePool.length.toLocaleString()} available`, ...items].slice(0, 6));
+  }
+
+  async function loadPuzzlePack() {
+    try {
+      const response = await fetch("/puzzles/lichess-pack.json", { cache: "no-store" });
+      if (!response.ok) throw new Error("Missing puzzle pack");
+      const pack = await response.json() as PuzzlePack;
+      const imported = pack.puzzles.map(puzzleFromLichessRow).filter((item): item is Puzzle => Boolean(item));
+      if (!imported.length) throw new Error("No valid rows");
+      setPuzzlePool(imported);
+      setPuzzleIndex(0);
+      setUsedPuzzleIds([]);
+      setStatus("preview");
+      setPackStatus(`${imported.length.toLocaleString()} Lichess puzzles loaded from Polars pack`);
+      setEvents((items) => [`Loaded ${imported.length.toLocaleString()} Lichess puzzles`, ...items].slice(0, 6));
+    } catch {
+      setPuzzlePool(puzzles);
+      setPackStatus("No Polars puzzle pack found; using built-in sample puzzles");
+    }
   }
 
   function startRound() {
@@ -151,6 +279,7 @@ export default function Home() {
     );
     setTimeLeft(timer);
     setStatus("live");
+    setUsedPuzzleIds((ids) => ids.includes(puzzle.id) ? ids : [...ids, puzzle.id]);
     setEvents((items) => [`${puzzle.id} pushed to all boards`, ...items].slice(0, 6));
     window.setTimeout(() => autoSolve("ava", 6.2), 4200);
     window.setTimeout(() => autoSolve("milan", 9.7), 7000);
@@ -182,7 +311,11 @@ export default function Home() {
 
   function submitMove(giveUp = false) {
     if (status !== "live" || you.answered) return;
-    const correct = !giveUp && moveText.trim().toLowerCase() === puzzle.answer.toLowerCase();
+    const submitted = moveText.trim().toLowerCase();
+    const correct = !giveUp && (
+      puzzle.correctInputs.includes(submitted) ||
+      puzzle.correctInputs.includes(normalizeMove(submitted))
+    );
     const rank = players.filter((player) => player.correct).length + 1;
     const elapsed = timer - timeLeft + Math.max(0.2, Math.random() * 0.8);
     const points = correct ? scoreForRank(rank, curve, maxPoints, cutoff) : 0;
@@ -269,6 +402,8 @@ export default function Home() {
               <ChessBoard board={puzzle.board} selected={selected} onSelect={setSelected} />
               <div className="puzzle-meta">
                 <span>{puzzle.side} to move</span>
+                {puzzle.source === "lichess" && <span>Lichess CSV</span>}
+                {typeof puzzle.popularity === "number" && <span>Popularity {puzzle.popularity}</span>}
                 <span>{puzzle.themes.join(" / ")}</span>
               </div>
               {status === "reveal" && (
@@ -292,14 +427,20 @@ export default function Home() {
               </div>
 
               <div className="control-grid">
+                <label>Rating min<input type="number" value={ratingMin} min={0} onChange={(event) => setRatingMin(Number(event.target.value))} /></label>
+                <label>Rating max<input type="number" value={ratingMax} min={0} onChange={(event) => setRatingMax(Number(event.target.value))} /></label>
+                <label>Theme filter<input value={themeFilter} onChange={(event) => setThemeFilter(event.target.value)} placeholder="fork, mateIn2, endgame" /></label>
+                <label>Min popularity<input type="number" value={minPopularity} min={-100} max={100} onChange={(event) => setMinPopularity(Number(event.target.value))} /></label>
                 <label>Timer seconds<input type="number" value={timer} min={10} max={180} onChange={(event) => setTimer(Number(event.target.value))} /></label>
                 <label>Max points<input type="number" value={maxPoints} min={10} step={10} onChange={(event) => setMaxPoints(Number(event.target.value))} /></label>
                 <label>Cutoff rank<input type="number" value={cutoff} min={1} max={players.length} onChange={(event) => setCutoff(Number(event.target.value))} /></label>
                 <label>Scoring<select value={curve} onChange={(event) => setCurve(event.target.value as Curve)}><option value="linear">Linear</option><option value="exponential">Exponential</option><option value="quadratic">Quadratic</option><option value="winner">Winner takes all</option><option value="flat">Flat participation</option></select></label>
               </div>
+              <div className="waiting">{packStatus} · {filteredPuzzles.length.toLocaleString()} match filters · {usedPuzzleIds.length} used</div>
 
               <div className="button-row">
                 <button onClick={() => previewPuzzle(1)}>Preview puzzle</button>
+                <button onClick={loadPuzzlePack}>Reload pack</button>
                 <button onClick={startRound} className="primary" disabled={status === "live"}>Push puzzle</button>
                 <button onClick={() => setStatus("reveal")} disabled={status !== "live"}>Force end</button>
                 <button onClick={endSession}>End session</button>
