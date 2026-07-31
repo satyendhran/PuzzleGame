@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>PuzzleArena Admin</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body data-page="admin">
+    <main class="shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">PuzzleArena</p>
+          <h1>Admin control room</h1>
+        </div>
+        <div class="room-card">
+          <span>Room</span>
+          <strong id="roomCode">----</strong>
+          <small id="connectionState">connecting</small>
+        </div>
+      </header>
+
+      <section class="grid two">
+        <section class="panel">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">Host login</p>
+              <h2>Run session</h2>
+            </div>
+            <span id="hostBadge" class="pill">locked</span>
+          </div>
+          <div id="hostLogin" class="inline-form">
+            <input id="hostPassword" type="password" placeholder="Host password" autocomplete="current-password" />
+            <button id="hostLoginButton" class="primary">Create room</button>
+          </div>
+          <div id="hostControls" class="hidden">
+            <div class="control-grid">
+              <label>Rating min<input id="ratingMin" type="number" /></label>
+              <label>Rating max<input id="ratingMax" type="number" /></label>
+              <label>Theme<select id="theme"></select></label>
+              <label>Min popularity<input id="minPopularity" type="number" /></label>
+              <label>Timer seconds<input id="timer" type="number" min="5" /></label>
+              <label>Max points<input id="maxPoints" type="number" min="10" /></label>
+              <label>Cutoff rank<input id="cutoff" type="number" min="1" /></label>
+              <label>Scoring<select id="curve"><option value="linear">Linear</option><option value="exponential">Exponential</option><option value="quadratic">Quadratic</option><option value="winner">Winner takes all</option><option value="flat">Flat participation</option></select></label>
+            </div>
+            <div class="button-row">
+              <button id="saveSettings">Save settings</button>
+              <button id="previewPuzzle">Preview puzzle</button>
+              <button id="startRound" class="primary">Start round</button>
+              <button id="forceEnd">Force end</button>
+              <button id="endSession">End session</button>
+              <a id="exportLink" class="button-link" href="/api/export.csv">Export CSV</a>
+              <a id="tvLink" class="button-link" href="/tv" target="_blank">Open TV</a>
+            </div>
+          </div>
+          <p id="hostMessage" class="message"></p>
+          <div class="stat-row">
+            <span><strong id="puzzleCount">0</strong> puzzles</span>
+            <span><strong id="usedCount">0</strong> used</span>
+            <span><strong id="waitingCount">0</strong> waiting</span>
+          </div>
+          <section>
+            <p class="eyebrow">Roster</p>
+            <div id="roster" class="stack"></div>
+          </section>
+          <section>
+            <p class="eyebrow">Events</p>
+            <div id="events" class="stack"></div>
+          </section>
+        </section>
+
+        <section class="panel board-panel">
+          <div class="panel-heading">
+            <div>
+              <p id="puzzleMeta" class="eyebrow">No puzzle selected</p>
+              <h2 id="puzzleTitle">Preview a puzzle to begin</h2>
+            </div>
+            <span id="status" class="pill">lobby</span>
+          </div>
+          <div id="hostBoard" class="board" aria-label="Host chessboard"></div>
+          <div id="puzzleTags" class="tags"></div>
+          <div id="solutionBox" class="solution hidden"></div>
+        </section>
+      </section>
+    </main>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/themes.js"></script>
+    <script type="module" src="/client.js"></script>
+  </body>
+</html>

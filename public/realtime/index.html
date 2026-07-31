@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>PuzzleArena Player</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body data-page="player">
+    <main class="shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">PuzzleArena</p>
+          <h1>Player board</h1>
+        </div>
+        <div class="room-card">
+          <span>Room</span>
+          <strong id="roomCode">----</strong>
+          <small id="connectionState">connecting</small>
+        </div>
+      </header>
+
+      <section class="grid two">
+        <section class="panel board-panel">
+          <div class="panel-heading">
+            <div>
+              <p id="playerPuzzleMeta" class="eyebrow">Waiting for host</p>
+              <h2 id="playerPuzzleTitle">Join the room</h2>
+            </div>
+            <span id="playerTimer" class="timer hidden">--</span>
+          </div>
+          <div id="playerBoard" class="board playable" aria-label="Player chessboard"></div>
+          <div id="moveTray" class="move-tray">
+            <button id="giveUp">Give up</button>
+          </div>
+          <p id="playerFeedback" class="message"></p>
+          <div id="playerSolutionBox" class="solution hidden"></div>
+        </section>
+
+        <section class="panel">
+          <div id="joinBox">
+            <p class="eyebrow">Join game</p>
+            <h2>Enter room and nickname</h2>
+            <div class="inline-form join-form">
+              <input id="roomCodeInput" placeholder="Room ID" maxlength="4" autocomplete="off" required />
+              <input id="nickname" placeholder="Your name" maxlength="18" autocomplete="name" required />
+              <button id="joinButton" class="primary">Join</button>
+            </div>
+          </div>
+          <div class="score-card player-standing">
+            <span>Current ranking</span>
+            <strong id="ownRankNumber">--</strong>
+            <small id="ownRank">Not joined</small>
+            <div class="standing-grid">
+              <span>Score <b id="ownScore">0</b></span>
+              <span>Progress <b id="ownProgress">0/0</b></span>
+            </div>
+          </div>
+          <div class="status-panel">
+            <p class="eyebrow">Round status</p>
+            <strong id="playerRoundStatus">Waiting</strong>
+            <span>Play moves directly on the board. Your move submits immediately.</span>
+          </div>
+        </section>
+      </section>
+    </main>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script type="module" src="/client.js"></script>
+  </body>
+</html>

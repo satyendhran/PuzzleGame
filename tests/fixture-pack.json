@@ -1,0 +1,24 @@
+{
+  "source": "fixture",
+  "count": 1,
+  "filters": {
+    "minRating": 800,
+    "maxRating": 2400,
+    "minPopularity": 0,
+    "minPlays": 0,
+    "themes": []
+  },
+  "puzzles": [
+    {
+      "id": "fixture-mate",
+      "fen": "4Qb2/4N1k1/5pp1/7p/1n6/1K6/3BqPP1/8 b - - 6 49",
+      "moves": "e2d2 e8g6 g7h8 g6g8",
+      "rating": 900,
+      "popularity": 100,
+      "plays": 1000,
+      "themes": "mate mateIn2 endgame short",
+      "gameUrl": "",
+      "openingTags": ""
+    }
+  ]
+}

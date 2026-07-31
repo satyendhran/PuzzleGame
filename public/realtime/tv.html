@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>PuzzleArena TV</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body data-page="tv">
+    <main class="shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">PuzzleArena</p>
+          <h1>Live leaderboard</h1>
+        </div>
+        <div class="room-card">
+          <span>Room</span>
+          <strong id="roomCode">----</strong>
+          <small id="connectionState">connecting</small>
+        </div>
+      </header>
+
+      <section class="tv-panel">
+        <div class="timer-ring">
+          <strong id="tvTimer">Ready</strong>
+          <span id="tvStatus">lobby</span>
+        </div>
+        <div>
+          <div id="tvJoinBox" class="inline-form">
+            <input id="tvRoomCode" placeholder="Room ID" maxlength="4" autocomplete="off" />
+            <button id="watchRoomButton" class="primary">Watch</button>
+          </div>
+          <p class="eyebrow">Standings</p>
+          <h2 id="tvTitle">Waiting for players</h2>
+          <div id="tvLeaderboard" class="stack large"></div>
+        </div>
+      </section>
+    </main>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script type="module" src="/client.js"></script>
+  </body>
+</html>
