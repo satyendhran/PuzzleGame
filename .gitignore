@@ -41,3 +41,8 @@ next-env.d.ts
 /.wrangler/
 /outputs/
 /work/
+
+# local datasets
+/data/*.csv
+/data/session-cache.json
+!/data/.gitkeep
